@@ -10,7 +10,7 @@
 void Batcher::AddLine(const Line& line, const Color* colors,
                       PickingType picking_type,
                       std::unique_ptr<PickingUserData> user_data) {
-  Color picking_color = PickingId::GetColor(
+  Color picking_color = PickingId::ToColor(
       picking_type, line_buffer_.lines_.size(), batcher_id_);
   line_buffer_.lines_.push_back(line);
   line_buffer_.colors_.push_back(colors, 2);
@@ -51,7 +51,7 @@ void Batcher::AddBox(const Box& box, const Color* colors,
                      PickingType picking_type,
                      std::unique_ptr<PickingUserData> user_data) {
   Color picking_color =
-      PickingId::GetColor(picking_type, box_buffer_.boxes_.size(), batcher_id_);
+      PickingId::ToColor(picking_type, box_buffer_.boxes_.size(), batcher_id_);
   box_buffer_.boxes_.push_back(box);
   box_buffer_.colors_.push_back(colors, 4);
   box_buffer_.picking_colors_.push_back_n(picking_color, 4);
@@ -77,7 +77,7 @@ void Batcher::AddShadedBox(Vec2 pos, Vec2 size, float z, Color color,
 void Batcher::AddTriangle(const Triangle& triangle, Color color,
                           PickingType picking_type,
                           std::unique_ptr<PickingUserData> user_data) {
-  Color picking_color = PickingId::GetColor(
+  Color picking_color = PickingId::ToColor(
       picking_type, triangle_buffer_.triangles_.size(), batcher_id_);
   triangle_buffer_.triangles_.push_back(triangle);
   triangle_buffer_.colors_.push_back_n(color, 3);
@@ -92,20 +92,20 @@ void Batcher::AddTriangle(Vec3 v0, Vec3 v1, Vec3 v2, Color color,
 }
 
 PickingUserData* Batcher::GetUserData(PickingId id) {
-  CHECK(id.id >= 0);
+  CHECK(id.element_id >= 0);
 
   switch (id.type) {
     case PickingType::kInvalid:
       return nullptr;
     case PickingType::kBox:
-      CHECK(id.id < box_buffer_.user_data_.size());
-      return box_buffer_.user_data_[id.id].get();
+      CHECK(id.element_id < box_buffer_.user_data_.size());
+      return box_buffer_.user_data_[id.element_id].get();
     case PickingType::kLine:
-      CHECK(id.id < line_buffer_.user_data_.size());
-      return line_buffer_.user_data_[id.id].get();
+      CHECK(id.element_id < line_buffer_.user_data_.size());
+      return line_buffer_.user_data_[id.element_id].get();
     case PickingType::kTriangle:
-      CHECK(id.id < triangle_buffer_.user_data_.size());
-      return triangle_buffer_.user_data_[id.id].get();
+      CHECK(id.element_id < triangle_buffer_.user_data_.size());
+      return triangle_buffer_.user_data_[id.element_id].get();
     case PickingType::kPickable:
       return nullptr;
   }
