@@ -7,92 +7,109 @@
 #include "OpenGl.h"
 #include "Utils.h"
 
-void Batcher::AddLine(const Line& line, const Color* colors,
-                      PickingType picking_type,
+void Batcher::AddLine(Vec2 from, Vec2 to, float z, Color color,
                       std::unique_ptr<PickingUserData> user_data) {
+  Line line;
+  Color colors[2];
+  Fill(colors, color);
   Color picking_color = PickingId::ToColor(
-      picking_type, line_buffer_.lines_.size(), batcher_id_);
+      PickingType::kLine, line_buffer_.lines_.size(), batcher_id_);
+
+  line.m_Beg = Vec3(from[0], from[1], z);
+  line.m_End = Vec3(to[0], to[1], z);
+
   line_buffer_.lines_.push_back(line);
   line_buffer_.colors_.push_back(colors, 2);
   line_buffer_.picking_colors_.push_back_n(picking_color, 2);
   line_buffer_.user_data_.push_back(std::move(user_data));
 }
 
-void Batcher::AddLine(const Line& line, Color color, PickingType picking_type,
-                      std::unique_ptr<PickingUserData> user_data) {
-  Color colors[2];
-  Fill(colors, color);
-  AddLine(line, colors, picking_type, std::move(user_data));
-}
-
 void Batcher::AddLine(Vec2 from, Vec2 to, float z, Color color,
-                      PickingType picking_type,
-                      std::unique_ptr<PickingUserData> user_data) {
+                      std::weak_ptr<Pickable> pickable) {
+  CHECK(picking_manager_ != nullptr);
+
   Line line;
-  Color colors[2];
-  Fill(colors, color);
+  Color picking_color =
+      picking_manager_->GetPickableColor(pickable, batcher_id_);
+
   line.m_Beg = Vec3(from[0], from[1], z);
   line.m_End = Vec3(to[0], to[1], z);
-  AddLine(line, colors, picking_type, std::move(user_data));
+
+  line_buffer_.lines_.push_back(line);
+  line_buffer_.colors_.push_back_n(color, 2);
+  line_buffer_.picking_colors_.push_back_n(picking_color, 2);
+  line_buffer_.user_data_.push_back(nullptr);
 }
 
 void Batcher::AddVerticalLine(Vec2 pos, float size, float z, Color color,
-                              PickingType picking_type,
                               std::unique_ptr<PickingUserData> user_data) {
-  Line line;
-  Color colors[2];
-  Fill(colors, color);
-  line.m_Beg = Vec3(pos[0], pos[1], z);
-  line.m_End = Vec3(pos[0], pos[1] + size, z);
-  AddLine(line, colors, picking_type, std::move(user_data));
+  AddLine(pos, pos + Vec2(0, size), z, color, std::move(user_data));
 }
 
 void Batcher::AddBox(const Box& box, const Color* colors,
-                     PickingType picking_type,
                      std::unique_ptr<PickingUserData> user_data) {
-  Color picking_color =
-      PickingId::ToColor(picking_type, box_buffer_.boxes_.size(), batcher_id_);
+  Color picking_color = PickingId::ToColor(
+      PickingType::kBox, box_buffer_.boxes_.size(), batcher_id_);
   box_buffer_.boxes_.push_back(box);
   box_buffer_.colors_.push_back(colors, 4);
   box_buffer_.picking_colors_.push_back_n(picking_color, 4);
   box_buffer_.user_data_.push_back(std::move(user_data));
 }
 
-void Batcher::AddBox(const Box& box, Color color, PickingType picking_type,
+void Batcher::AddBox(const Box& box, Color color,
                      std::unique_ptr<PickingUserData> user_data) {
   Color colors[4];
   Fill(colors, color);
-  AddBox(box, colors, picking_type, std::move(user_data));
+  AddBox(box, colors, std::move(user_data));
+}
+
+void Batcher::AddBox(const Box& box, Color color,
+                     std::weak_ptr<Pickable> pickable) {
+  CHECK(picking_manager_ != nullptr);
+
+  Color picking_color =
+      picking_manager_->GetPickableColor(pickable, batcher_id_);
+
+  box_buffer_.boxes_.push_back(box);
+  box_buffer_.colors_.push_back_n(color, 4);
+  box_buffer_.picking_colors_.push_back_n(picking_color, 4);
+  box_buffer_.user_data_.push_back(nullptr);
 }
 
 void Batcher::AddShadedBox(Vec2 pos, Vec2 size, float z, Color color,
-                           PickingType picking_type,
                            std::unique_ptr<PickingUserData> user_data) {
   Color colors[4];
   GetBoxGradientColors(color, colors);
   Box box(pos, size, z);
-  AddBox(box, colors, picking_type, std::move(user_data));
+  AddBox(box, colors, std::move(user_data));
 }
 
 void Batcher::AddTriangle(const Triangle& triangle, Color color,
-                          PickingType picking_type,
                           std::unique_ptr<PickingUserData> user_data) {
   Color picking_color = PickingId::ToColor(
-      picking_type, triangle_buffer_.triangles_.size(), batcher_id_);
+      PickingType::kTriangle, triangle_buffer_.triangles_.size(), batcher_id_);
   triangle_buffer_.triangles_.push_back(triangle);
   triangle_buffer_.colors_.push_back_n(color, 3);
   triangle_buffer_.picking_colors_.push_back_n(picking_color, 3);
   triangle_buffer_.user_data_.push_back(std::move(user_data));
 }
 
-void Batcher::AddTriangle(Vec3 v0, Vec3 v1, Vec3 v2, Color color,
-                          PickingType picking_type,
-                          std::unique_ptr<PickingUserData> user_data) {
-  AddTriangle(Triangle(v0, v1, v2), color, picking_type, std::move(user_data));
+void Batcher::AddTriangle(const Triangle& triangle, Color color,
+                          std::weak_ptr<Pickable> pickable) {
+  CHECK(picking_manager_ != nullptr);
+
+  Color picking_color =
+      picking_manager_->GetPickableColor(pickable, batcher_id_);
+
+  triangle_buffer_.triangles_.push_back(triangle);
+  triangle_buffer_.colors_.push_back_n(color, 3);
+  triangle_buffer_.picking_colors_.push_back_n(picking_color, 3);
+  triangle_buffer_.user_data_.push_back(nullptr);
 }
 
 PickingUserData* Batcher::GetUserData(PickingId id) {
   CHECK(id.element_id >= 0);
+  CHECK(id.batcher_id == batcher_id_);
 
   switch (id.type) {
     case PickingType::kInvalid:
@@ -113,8 +130,8 @@ PickingUserData* Batcher::GetUserData(PickingId id) {
   return nullptr;
 }
 
-TextBox* Batcher::GetTextBox(PickingId a_ID) {
-  PickingUserData* data = GetUserData(a_ID);
+TextBox* Batcher::GetTextBox(PickingId id) {
+  PickingUserData* data = GetUserData(id);
 
   if (data && data->text_box_) {
     return data->text_box_;
@@ -140,7 +157,7 @@ void Batcher::Reset() {
   triangle_buffer_.Reset();
 }
 
-void Batcher::Draw(bool picking) {
+void Batcher::Draw(bool picking) const {
   glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_CULL_FACE);
@@ -157,13 +174,13 @@ void Batcher::Draw(bool picking) {
   glPopAttrib();
 }
 
-void Batcher::DrawBoxBuffer(bool picking) {
+void Batcher::DrawBoxBuffer(bool picking) const {
   const Block<Box, BoxBuffer::NUM_BOXES_PER_BLOCK>* box_block =
-      GetBoxBuffer().boxes_.root();
+      box_buffer_.boxes_.root();
   const Block<Color, BoxBuffer::NUM_BOXES_PER_BLOCK * 4>* color_block;
 
-  color_block = !picking ? GetBoxBuffer().colors_.root()
-                         : GetBoxBuffer().picking_colors_.root();
+  color_block = !picking ? box_buffer_.colors_.root()
+                         : box_buffer_.picking_colors_.root();
 
   while (box_block) {
     if (auto num_elems = box_block->size()) {
@@ -177,13 +194,13 @@ void Batcher::DrawBoxBuffer(bool picking) {
   }
 }
 
-void Batcher::DrawLineBuffer(bool picking) {
+void Batcher::DrawLineBuffer(bool picking) const {
   const Block<Line, LineBuffer::NUM_LINES_PER_BLOCK>* line_block =
-      GetLineBuffer().lines_.root();
+      line_buffer_.lines_.root();
   const Block<Color, LineBuffer::NUM_LINES_PER_BLOCK * 2>* color_block;
 
-  color_block = !picking ? GetLineBuffer().colors_.root()
-                         : GetLineBuffer().picking_colors_.root();
+  color_block = !picking ? line_buffer_.colors_.root()
+                         : line_buffer_.picking_colors_.root();
 
   while (line_block) {
     if (auto num_elems = line_block->size()) {
@@ -197,13 +214,13 @@ void Batcher::DrawLineBuffer(bool picking) {
   }
 }
 
-void Batcher::DrawTriangleBuffer(bool picking) {
+void Batcher::DrawTriangleBuffer(bool picking) const {
   const Block<Triangle, TriangleBuffer::NUM_TRIANGLES_PER_BLOCK>*
-      triangle_block = GetTriangleBuffer().triangles_.root();
+      triangle_buffer_.triangles_.root();
   const Block<Color, TriangleBuffer::NUM_TRIANGLES_PER_BLOCK * 3>* color_block;
 
-  color_block = !picking ? GetTriangleBuffer().colors_.root()
-                         : GetTriangleBuffer().picking_colors_.root();
+  color_block = !picking ? triangle_buffer_.colors_.root()
+                         : triangle_buffer_.picking_colors_.root();
 
   while (triangle_block) {
     if (int num_elems = triangle_block->size()) {

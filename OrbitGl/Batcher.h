@@ -70,51 +70,56 @@ struct TriangleBuffer {
 
 class Batcher {
  public:
-  explicit Batcher(BatcherId batcher_id) : batcher_id_(batcher_id) {}
-  Batcher() : batcher_id_(BatcherId::kTimeGraph) {}
+  explicit Batcher(BatcherId batcher_id,
+                   PickingManager* picking_manager = nullptr)
+      : batcher_id_(batcher_id), picking_manager_(picking_manager) {}
 
-  void AddLine(const Line& line, const Color* colors, PickingType picking_type,
-               std::unique_ptr<PickingUserData> user_data = nullptr);
-  void AddLine(const Line& line, Color color, PickingType picking_type,
-               std::unique_ptr<PickingUserData> user_data = nullptr);
+  Batcher() = delete;
+  Batcher(const Batcher&) = delete;
+  Batcher(Batcher&&) = delete;
+
   void AddLine(Vec2 from, Vec2 to, float z, Color color,
-               PickingType picking_type,
                std::unique_ptr<PickingUserData> user_data = nullptr);
   void AddVerticalLine(Vec2 pos, float size, float z, Color color,
-                       PickingType picking_type,
                        std::unique_ptr<PickingUserData> user_data = nullptr);
+  void AddLine(Vec2 from, Vec2 to, float z, Color color,
+               std::weak_ptr<Pickable> pickable);
+  void AddVerticalLine(Vec2 pos, float size, float z, Color color,
+                       std::weak_ptr<Pickable> pickable);
 
-  void AddBox(const Box& box, const Color* colors, PickingType picking_type,
+  void AddBox(const Box& box, const Color* colors,
               std::unique_ptr<PickingUserData> user_data = nullptr);
-  void AddBox(const Box& box, Color color, PickingType picking_type,
+  void AddBox(const Box& box, Color color,
               std::unique_ptr<PickingUserData> user_data = nullptr);
+  void AddBox(const Box& box, Color color, std::weak_ptr<Pickable> pickable);
   void AddShadedBox(Vec2 pos, Vec2 size, float z, Color color,
-                    PickingType picking_type,
                     std::unique_ptr<PickingUserData> user_data = nullptr);
 
   void AddTriangle(const Triangle& triangle, Color color,
-                   PickingType picking_type,
                    std::unique_ptr<PickingUserData> user_data = nullptr);
-  void AddTriangle(Vec3 v0, Vec3 v1, Vec3 v2, Color color,
-                   PickingType picking_type,
-                   std::unique_ptr<PickingUserData> user_data = nullptr);
+  void AddTriangle(const Triangle& triangle, Color color,
+                   std::weak_ptr<Pickable> pickable);
 
-  void GetBoxGradientColors(Color color, Color* colors);
-
-  void Draw(bool picking = false);
+  virtual void Draw(bool picking = false) const;
 
   void Reset();
 
+  [[nodiscard]] PickingManager* GetPickingManager() { return picking_manager_; }
+  void SetPickingManager(PickingManager* picking_manager) {
+    picking_manager_ = picking_manager;
+  }
+
   [[nodiscard]] PickingUserData* GetUserData(PickingId id);
   [[nodiscard]] TextBox* GetTextBox(PickingId id);
-  [[nodiscard]] BoxBuffer& GetBoxBuffer() { return box_buffer_; }
-  [[nodiscard]] LineBuffer& GetLineBuffer() { return line_buffer_; }
-  [[nodiscard]] TriangleBuffer& GetTriangleBuffer() { return triangle_buffer_; }
 
  protected:
-  void DrawLineBuffer(bool picking);
-  void DrawBoxBuffer(bool picking);
-  void DrawTriangleBuffer(bool picking);
+  void DrawLineBuffer(bool picking) const;
+  void DrawBoxBuffer(bool picking) const;
+  void DrawTriangleBuffer(bool picking) const;
+
+  void GetBoxGradientColors(Color color, Color* colors);
+
+  PickingManager* picking_manager_;
   LineBuffer line_buffer_;
   BoxBuffer box_buffer_;
   TriangleBuffer triangle_buffer_;
