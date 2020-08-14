@@ -9,36 +9,20 @@
 
 void Batcher::AddLine(Vec2 from, Vec2 to, float z, Color color,
                       std::unique_ptr<PickingUserData> user_data) {
-  Line line;
-  Color colors[2];
-  Fill(colors, color);
   Color picking_color = PickingId::ToColor(
       PickingType::kLine, line_buffer_.lines_.size(), batcher_id_);
 
-  line.m_Beg = Vec3(from[0], from[1], z);
-  line.m_End = Vec3(to[0], to[1], z);
-
-  line_buffer_.lines_.push_back(line);
-  line_buffer_.colors_.push_back(colors, 2);
-  line_buffer_.picking_colors_.push_back_n(picking_color, 2);
-  line_buffer_.user_data_.push_back(std::move(user_data));
+  AddLine(from, to, z, color, picking_color, std::move(user_data));
 }
 
 void Batcher::AddLine(Vec2 from, Vec2 to, float z, Color color,
                       std::weak_ptr<Pickable> pickable) {
   CHECK(picking_manager_ != nullptr);
 
-  Line line;
   Color picking_color =
       picking_manager_->GetPickableColor(pickable, batcher_id_);
 
-  line.m_Beg = Vec3(from[0], from[1], z);
-  line.m_End = Vec3(to[0], to[1], z);
-
-  line_buffer_.lines_.push_back(line);
-  line_buffer_.colors_.push_back_n(color, 2);
-  line_buffer_.picking_colors_.push_back_n(picking_color, 2);
-  line_buffer_.user_data_.push_back(nullptr);
+  AddLine(from, to, z, color, picking_color, nullptr);
 }
 
 void Batcher::AddVerticalLine(Vec2 pos, float size, float z, Color color,
@@ -46,14 +30,24 @@ void Batcher::AddVerticalLine(Vec2 pos, float size, float z, Color color,
   AddLine(pos, pos + Vec2(0, size), z, color, std::move(user_data));
 }
 
+void Batcher::AddLine(Vec2 from, Vec2 to, float z, Color color,
+                      Color picking_color,
+                      std::unique_ptr<PickingUserData> user_data) {
+  Line line;
+  line.m_Beg = Vec3(from[0], from[1], z);
+  line.m_End = Vec3(to[0], to[1], z);
+
+  line_buffer_.lines_.push_back(line);
+  line_buffer_.colors_.push_back_n(color, 2);
+  line_buffer_.picking_colors_.push_back_n(picking_color, 2);
+  line_buffer_.user_data_.push_back(std::move(user_data));
+}
+
 void Batcher::AddBox(const Box& box, const Color* colors,
                      std::unique_ptr<PickingUserData> user_data) {
   Color picking_color = PickingId::ToColor(
       PickingType::kBox, box_buffer_.boxes_.size(), batcher_id_);
-  box_buffer_.boxes_.push_back(box);
-  box_buffer_.colors_.push_back(colors, 4);
-  box_buffer_.picking_colors_.push_back_n(picking_color, 4);
-  box_buffer_.user_data_.push_back(std::move(user_data));
+  AddBox(box, colors, picking_color, std::move(user_data));
 }
 
 void Batcher::AddBox(const Box& box, Color color,
@@ -69,11 +63,10 @@ void Batcher::AddBox(const Box& box, Color color,
 
   Color picking_color =
       picking_manager_->GetPickableColor(pickable, batcher_id_);
+  Color colors[4];
+  Fill(colors, color);
 
-  box_buffer_.boxes_.push_back(box);
-  box_buffer_.colors_.push_back_n(color, 4);
-  box_buffer_.picking_colors_.push_back_n(picking_color, 4);
-  box_buffer_.user_data_.push_back(nullptr);
+  AddBox(box, colors, picking_color, nullptr);
 }
 
 void Batcher::AddShadedBox(Vec2 pos, Vec2 size, float z, Color color,
@@ -84,14 +77,20 @@ void Batcher::AddShadedBox(Vec2 pos, Vec2 size, float z, Color color,
   AddBox(box, colors, std::move(user_data));
 }
 
+void Batcher::AddBox(const Box& box, const Color* colors, Color picking_color,
+                     std::unique_ptr<PickingUserData> user_data) {
+  box_buffer_.boxes_.push_back(box);
+  box_buffer_.colors_.push_back(colors, 4);
+  box_buffer_.picking_colors_.push_back_n(picking_color, 4);
+  box_buffer_.user_data_.push_back(std::move(user_data));
+}
+
 void Batcher::AddTriangle(const Triangle& triangle, Color color,
                           std::unique_ptr<PickingUserData> user_data) {
   Color picking_color = PickingId::ToColor(
       PickingType::kTriangle, triangle_buffer_.triangles_.size(), batcher_id_);
-  triangle_buffer_.triangles_.push_back(triangle);
-  triangle_buffer_.colors_.push_back_n(color, 3);
-  triangle_buffer_.picking_colors_.push_back_n(picking_color, 3);
-  triangle_buffer_.user_data_.push_back(std::move(user_data));
+
+  AddTriangle(triangle, color, picking_color, std::move(user_data));
 }
 
 void Batcher::AddTriangle(const Triangle& triangle, Color color,
@@ -101,10 +100,16 @@ void Batcher::AddTriangle(const Triangle& triangle, Color color,
   Color picking_color =
       picking_manager_->GetPickableColor(pickable, batcher_id_);
 
+  AddTriangle(triangle, color, picking_color, nullptr);
+}
+
+void Batcher::AddTriangle(const Triangle& triangle, Color color,
+                          Color picking_color,
+                          std::unique_ptr<PickingUserData> user_data) {
   triangle_buffer_.triangles_.push_back(triangle);
   triangle_buffer_.colors_.push_back_n(color, 3);
   triangle_buffer_.picking_colors_.push_back_n(picking_color, 3);
-  triangle_buffer_.user_data_.push_back(nullptr);
+  triangle_buffer_.user_data_.push_back(std::move(user_data));
 }
 
 const PickingUserData* Batcher::GetUserData(PickingId id) const {

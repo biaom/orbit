@@ -121,6 +121,13 @@ class Batcher {
 
   void GetBoxGradientColors(Color color, Color* colors);
 
+  void AddLine(Vec2 from, Vec2 to, float z, Color color, Color picking_color,
+               std::unique_ptr<PickingUserData> user_data = nullptr);
+  void AddBox(const Box& box, const Color* colors, Color picking_color,
+              std::unique_ptr<PickingUserData> user_data = nullptr);
+  void AddTriangle(const Triangle& triangle, Color color, Color picking_color,
+                   std::unique_ptr<PickingUserData> user_data = nullptr);
+
   PickingManager* picking_manager_;
   LineBuffer line_buffer_;
   BoxBuffer box_buffer_;

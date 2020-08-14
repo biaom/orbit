@@ -146,12 +146,6 @@ TEST(BlockChain, EmptyIteration) {
   ASSERT_FALSE(it != chain.end());
 }
 
-TEST(BlockChain, EmptyIteration) {
-  BlockChain<std::string, 1024> chain;
-  auto it = chain.begin();
-  ASSERT_FALSE(it != chain.end());
-}
-
 TEST(BlockChain, AddCopyableTypesN) {
   const std::string v1 = "hello world";
   BlockChain<std::string, 1024> chain;
